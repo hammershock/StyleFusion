@@ -31,11 +31,11 @@ def unnormalize(tensor):
 
 
 class VGG(nn.Module):
-    def __init__(self):
+    def __init__(self, content_layers, style_layers):
         super(VGG, self).__init__()
         self.model = models.vgg19(weights=VGG19_Weights.IMAGENET1K_V1).features
-        self.content_layers = CONTENT_LAYERS.keys()
-        self.style_layers = STYLE_LAYERS.keys()
+        self.content_layers = content_layers.keys()
+        self.style_layers = style_layers.keys()
 
         # 冻结模型的所有参数
         for param in self.model.parameters():
@@ -62,13 +62,15 @@ def gram_matrix(feature):
     return G
 
 
-def calculate_content_loss(original_feat, generated_feat):
+def calculate_content_loss(original_feat, generated_feat) -> torch.Tensor:
+    """计算内容损失，即生成特征图与标准特征图的规范化误差平方和"""
     b, c, h, w = original_feat.shape
     x = 2. * c * h * w
     return torch.sum((generated_feat - original_feat)**2) / x
 
 
 def calculate_style_loss(style_feat, generated_feat) -> torch.Tensor:
+    """计算风格损失，即生成特征图与标准特征图的格拉姆矩阵的规范化误差平方和"""
     b, c, h, w = style_feat.shape
     G = gram_matrix(generated_feat)
     A = gram_matrix(style_feat)
@@ -82,9 +84,8 @@ def save_image(tensor, filename):
     save_image = transforms.ToPILImage()(unnormalize(tensor).squeeze().cpu().detach())
     save_image.save(f"{OUTPUT_DIR}/{filename}")
 
-
-if __name__ == "__main__":
-    # Sequential(
+# vgg-19模型结构：
+# Sequential(
     # (0): Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
     # (1): ReLU(inplace=True)
     # (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
@@ -123,62 +124,53 @@ if __name__ == "__main__":
     # (35): ReLU(inplace=True)
     # (36): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
     # )
-    # 内容特征层及loss加权系数
-    CONTENT_LAYERS = {'5': 0.5, '10': 0.5}
-    # 风格特征层及loss加权系数
-    STYLE_LAYERS = {'0': 0.2, '5': 0.2, '10': 0.2, '19': 0.2, '28': 0.2}
 
+
+if __name__ == "__main__":
+    # ----------------路径参数----------------
     CONTENT_IMAGE_PATH = './data/content.jpg'
     STYLE_IMAGE_PATH = './data/style.jpg'
     OUTPUT_DIR = './output'
-
-    CONTENT_LOSS_FACTOR = 10
-    STYLE_LOSS_FACTOR = 10
-
-    WIDTH = 450
-    HEIGHT = 300
-
-    EPOCHS = 20
-    STEPS_PER_EPOCH = 100
-    LEARNING_RATE = 0.03
-
+    # ----------------风格迁移核心参数----------------
+    image_size = (450, 300)
+    # 内容特征层及loss加权系数
+    content_layers = {'5': 0.5, '10': 0.5}
+    # 风格特征层及loss加权系数
+    style_layers = {'0': 0.2, '5': 0.2, '10': 0.2, '19': 0.2, '28': 0.2}
     content_weight = 1
     style_weight = 100
-
+    # ----------------训练参数----------------
+    EPOCHS = 20
+    STEPS_PER_EPOCH = 100
+    learning_rate = 0.03
+    # ----------------开始训练----------------
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    content_img = load_image(CONTENT_IMAGE_PATH, normalization=True).to(device)
-    style_img = load_image(STYLE_IMAGE_PATH, normalization=True).to(device)
+    content_img = load_image(CONTENT_IMAGE_PATH, size=image_size).to(device)  # 读取内容图像
+    style_img = load_image(STYLE_IMAGE_PATH, size=image_size).to(device)  # 读取风格图像
 
-    # generated_img = content_img.clone().requires_grad_(True)
-    generated_img = torch.randn_like(content_img, requires_grad=True)
-    # Add noise to the content image
-    # generated_img.data += 0.5 * torch.randn(generated_img.data.size(), device=device)
+    generated_img = torch.randn_like(content_img, requires_grad=True).to(device)  # 随机初始化目标图像
+    save_image(generated_img, 'noise.jpg')  # 保存初始噪声图，供查看
 
-    # Save the generated image
-    save_image(generated_img, 'noise.jpg')
+    model = VGG(content_layers, style_layers).to(device).eval()  # 实例化模型和优化器
+    optimizer = optim.Adam([generated_img], lr=learning_rate)
 
-    model = VGG().to(device).eval()
-
-    optimizer = optim.Adam([generated_img], lr=0.03)
-
-    # 首先计算内容图的内容特征和风格图的风格特征，我们希望生成的图像同时在风格上近似这个风格图的风格特征、在内容上近似内容图的内容特征
-    content_features, _ = model(content_img)
-    _, style_features = model(style_img)
+    content_features, _ = model(content_img)  # 计算内容图的内容特征
+    _, style_features = model(style_img)  # 计算风格图的风格特征
 
     for epoch in range(EPOCHS):
         p_bar = tqdm(range(STEPS_PER_EPOCH), desc=f'epoch {epoch}')
         for step in p_bar:
             generated_content, generated_style = model(generated_img)
 
-            content_loss = sum(content_weight * CONTENT_LAYERS[name] * calculate_content_loss(content_features[name], gen_content) for name, gen_content in generated_content.items())
+            content_loss = sum(content_weight * content_layers[name] * calculate_content_loss(content_features[name], gen_content) for name, gen_content in generated_content.items())
 
-            style_loss = sum(style_weight * STYLE_LAYERS[name] * calculate_style_loss(style_features[name], gen_style) for name, gen_style in generated_style.items())
+            style_loss = sum(style_weight * style_layers[name] * calculate_style_loss(style_features[name], gen_style) for name, gen_style in generated_style.items())
 
             total_loss = style_loss + content_loss
 
             optimizer.zero_grad()
             total_loss.backward()
-            torch.nn.utils.clip_grad_norm_(generated_img, max_norm=1)
+            torch.nn.utils.clip_grad_norm_(generated_img, max_norm=1)  # 梯度裁剪
             optimizer.step()
             p_bar.set_postfix(style_loss=style_loss.item(), content_loss=content_loss.item())
 
