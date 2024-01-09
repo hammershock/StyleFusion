@@ -134,9 +134,9 @@ if __name__ == "__main__":
     # ----------------风格迁移核心参数----------------
     image_size = (450, 300)
     # 内容特征层及loss加权系数
-    content_layers = {'5': 0.5, '10': 0.5}
+    content_layers = {'5': 0.5, '10': 0.5}  # 使用较浅层作为内容特征，保证生成图片内容结构相似性
     # 风格特征层及loss加权系数
-    style_layers = {'0': 0.2, '5': 0.2, '10': 0.2, '19': 0.2, '28': 0.2}
+    style_layers = {'0': 0.2, '5': 0.2, '10': 0.2, '19': 0.2, '28': 0.2}  # 使用不同深度的风格特征，生成风格更加层次丰富
     content_weight = 1
     style_weight = 100
     # ----------------训练参数----------------
@@ -160,10 +160,9 @@ if __name__ == "__main__":
     for epoch in range(EPOCHS):
         p_bar = tqdm(range(STEPS_PER_EPOCH), desc=f'epoch {epoch}')
         for step in p_bar:
-            generated_content, generated_style = model(generated_img)
-
+            generated_content, generated_style = model(generated_img)  # 计算生成图片的不同层次的内容特征和风格特征
+            # 不同层次的内容和风格特征损失加权求和
             content_loss = sum(content_weight * content_layers[name] * calculate_content_loss(content_features[name], gen_content) for name, gen_content in generated_content.items())
-
             style_loss = sum(style_weight * style_layers[name] * calculate_style_loss(style_features[name], gen_style) for name, gen_style in generated_style.items())
 
             total_loss = style_loss + content_loss
@@ -174,5 +173,5 @@ if __name__ == "__main__":
             optimizer.step()
             p_bar.set_postfix(style_loss=style_loss.item(), content_loss=content_loss.item())
 
-        # Save the generated image
+        # 保存生成图像
         save_image(generated_img, f'generated_{epoch+1}.jpg')
