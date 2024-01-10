@@ -42,6 +42,11 @@ class VGG(nn.Module):
             param.requires_grad = False
 
     def forward(self, x):
+        """
+        对vgg19网络的包装，前向传播时保留了内容层和风格层的中间输出
+        :param x:
+        :return: 内容层和风格层的特征图
+        """
         content_features = {}
         style_features = {}
 

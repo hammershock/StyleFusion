@@ -1,12 +1,10 @@
-# StyleFusion
+# StyleFusion神经风格迁移
 
 使用 PyTorch 实现的**非实时图像风格迁移**。
 
-## 使用深度神经网络进行图像风格迁移
-
 图像风格迁移是深度学习中的一项有趣应用，它结合了两幅图像的内容和风格，创造出一幅新的图像。这项技术不仅在内容上保留了原始图像的特征，还在风格上融合了另一幅图像的艺术特质。
 
-比如我们选择内容图像为：
+在本例中我们选择内容图像为：
 
 <img src="data/content.jpg" width=450 height=300 alt="content image">
 
@@ -46,10 +44,10 @@
 
 ## 参考文献
 
-本项目的实现参考了以下论文：
+本项目复现了以下论文的成果：
 - Gatys, L. A., Ecker, A. S., & Bethge, M. (2016). Image Style Transfer Using Convolutional Neural Networks. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR).
 该论文首次提出了使用卷积神经网络实现图像风格迁移的方法，并为后续的研究奠定了基础。
-
+- 参考了AaronJny使用tensorflow的实现(https://github.com/AaronJny/DeepLearningExamples/tree/master/tf2-neural-style-transfer)
 ## 如何使用
 `python main.py`
 
