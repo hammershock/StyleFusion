@@ -42,10 +42,8 @@
 
 生成的图像最初是随机噪声图像。通过梯度下降算法，我们逐渐调整其像素值，以最小化内容损失和风格损失的组合。通过这种方式，生成的图像逐渐在内容上接近内容图像，同时在风格上接近风格图像。调整内容与风格损失的相对权重，可以控制生成图像的最终外观。
 
-## 参考文献
-
-本项目复现了以下论文的成果：
-- Gatys, L. A., Ecker, A. S., & Bethge, M. (2016). Image Style Transfer Using Convolutional Neural Networks. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR).
+## 参考资料
+- 复现了以下论文的成果：Gatys, L. A., Ecker, A. S., & Bethge, M. (2016). Image Style Transfer Using Convolutional Neural Networks. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR).
 该论文首次提出了使用卷积神经网络实现图像风格迁移的方法，并为后续的研究奠定了基础。
 - 参考了AaronJny使用tensorflow的实现(https://github.com/AaronJny/DeepLearningExamples/tree/master/tf2-neural-style-transfer)
 ## 如何使用
