@@ -104,47 +104,6 @@ def save_image(tensor, filename, denormalization=True):
     image = transforms.ToPILImage()(tensor.squeeze().cpu().detach())
     image.save(f"{OUTPUT_DIR}/{filename}")
 
-# vgg-19模型结构：
-# Sequential(
-    # (0): Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-    # (1): ReLU(inplace=True)
-    # (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-    # (3): ReLU(inplace=True)
-    # (4): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
-    # (5): Conv2d(64, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-    # (6): ReLU(inplace=True)
-    # (7): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-    # (8): ReLU(inplace=True)
-    # (9): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
-    # (10): Conv2d(128, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-    # (11): ReLU(inplace=True)
-    # (12): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-    # (13): ReLU(inplace=True)
-    # (14): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-    # (15): ReLU(inplace=True)
-    # (16): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-    # (17): ReLU(inplace=True)
-    # (18): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
-    # (19): Conv2d(256, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-    # (20): ReLU(inplace=True)
-    # (21): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-    # (22): ReLU(inplace=True)
-    # (23): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-    # (24): ReLU(inplace=True)
-    # (25): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-    # (26): ReLU(inplace=True)
-    # (27): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
-    # (28): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-    # (29): ReLU(inplace=True)
-    # (30): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-    # (31): ReLU(inplace=True)
-    # (32): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-    # (33): ReLU(inplace=True)
-    # (34): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-    # (35): ReLU(inplace=True)
-    # (36): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
-    # )
-
 
 if __name__ == "__main__":
     # ----------------路径参数----------------
@@ -171,16 +130,17 @@ if __name__ == "__main__":
     generated_img = torch.randn_like(content_img, requires_grad=True).to(device)  # 随机初始化目标图像
     save_image(generated_img, 'noise.jpg')  # 保存初始噪声图，供查看
 
-    model = VGG(content_layers, style_layers).to(device).eval()  # 实例化模型和优化器
+    vgg_model = VGG(content_layers, style_layers).to(device).eval()  # 实例化模型和优化器
+    # print(vgg_model.model)  # 打印vgg模型结构
     optimizer = optim.Adam([generated_img], lr=learning_rate)  # 直接对图像本身进行优化
 
-    content_features, _ = model(content_img)  # 计算内容图的内容特征
-    _, style_features = model(style_img)  # 计算风格图的风格特征
+    content_features, _ = vgg_model(content_img)  # 计算内容图的内容特征
+    _, style_features = vgg_model(style_img)  # 计算风格图的风格特征
 
     for epoch in range(EPOCHS):
         p_bar = tqdm(range(STEPS_PER_EPOCH), desc=f'epoch {epoch}')
         for step in p_bar:
-            generated_content, generated_style = model(generated_img)  # 计算生成图片的不同层次的内容特征和风格特征
+            generated_content, generated_style = vgg_model(generated_img)  # 计算生成图片的不同层次的内容特征和风格特征
             # 不同层次的内容和风格特征损失加权求和
             content_loss = sum(content_weight * content_layers[name] * calculate_content_loss(content_features[name], gen_content) for name, gen_content in generated_content.items())
             style_loss = sum(style_weight * style_layers[name] * calculate_style_loss(style_features[name], gen_style) for name, gen_style in generated_style.items())
