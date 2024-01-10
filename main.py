@@ -21,7 +21,7 @@ def load_image(image_path, size=(450, 300), normalization=True):
     return image
 
 
-def unnormalize(tensor):
+def denormalize(tensor):
     """反归一化张量以将其转换回图像格式"""
     mean = torch.tensor([0.485, 0.456, 0.406]).view(-1, 1, 1).to(tensor.device)
     std = torch.tensor([0.229, 0.224, 0.225]).view(-1, 1, 1).to(tensor.device)
@@ -61,16 +61,22 @@ class VGG(nn.Module):
 
 
 def gram_matrix(feature):
-    _, c, h, w = feature.size()
-    feature = feature.view(c, h * w)
-    G = torch.mm(feature, feature.t())
+    """
+    计算特征图的格莱姆矩阵
+    :param feature:
+    :return:
+    """
+    b, c, h, w = feature.size()
+    feature = feature.view(c, h * w)  # 沿着h，w维度拉平
+    G = torch.matmul(feature, feature.T)  # matmul, T方法适用于二维即以上张量
+    # G = torch.mm(feature, feature.t())  # mm, t()仅仅适用于二维矩阵的运算
     return G
 
 
 def calculate_content_loss(original_feat, generated_feat) -> torch.Tensor:
     """计算内容损失，即生成特征图与标准特征图的规范化误差平方和"""
     b, c, h, w = original_feat.shape
-    x = 2. * c * h * w
+    x = 2. * c * h * w  # 规范化系数
     return torch.sum((generated_feat - original_feat)**2) / x
 
 
@@ -79,15 +85,24 @@ def calculate_style_loss(style_feat, generated_feat) -> torch.Tensor:
     b, c, h, w = style_feat.shape
     G = gram_matrix(generated_feat)
     A = gram_matrix(style_feat)
-    x = 4. * ((h * w) ** 2) * (c ** 2)
+    x = 4. * ((h * w) ** 2) * (c ** 2)  # 规范化系数
     return torch.sum((G - A)**2) / x
 
 
-def save_image(tensor, filename):
+def save_image(tensor, filename, denormalization=True):
+    """
+    保存图像到OUTPUT_DIR
+    :param tensor:
+    :param filename:
+    :param denormalization: 是否使用反归一化
+    :return:
+    """
     if not os.path.exists(OUTPUT_DIR):
         os.makedirs(OUTPUT_DIR)
-    save_image = transforms.ToPILImage()(unnormalize(tensor).squeeze().cpu().detach())
-    save_image.save(f"{OUTPUT_DIR}/{filename}")
+    if denormalization:
+        tensor = denormalize(tensor)
+    image = transforms.ToPILImage()(tensor.squeeze().cpu().detach())
+    image.save(f"{OUTPUT_DIR}/{filename}")
 
 # vgg-19模型结构：
 # Sequential(
@@ -157,7 +172,7 @@ if __name__ == "__main__":
     save_image(generated_img, 'noise.jpg')  # 保存初始噪声图，供查看
 
     model = VGG(content_layers, style_layers).to(device).eval()  # 实例化模型和优化器
-    optimizer = optim.Adam([generated_img], lr=learning_rate)
+    optimizer = optim.Adam([generated_img], lr=learning_rate)  # 直接对图像本身进行优化
 
     content_features, _ = model(content_img)  # 计算内容图的内容特征
     _, style_features = model(style_img)  # 计算风格图的风格特征
