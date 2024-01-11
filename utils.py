@@ -41,7 +41,7 @@ def save_model(model: torch.nn.Module, save_path):
     :return:
     """
     save_dir, filename = os.path.split(save_path)
-    if not os.path.exists(save_dir):
+    if save_dir and not os.path.exists(save_dir):
         os.makedirs(save_dir)
     torch.save(model.state_dict(), os.path.join(save_dir, filename))
 

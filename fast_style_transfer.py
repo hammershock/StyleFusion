@@ -4,7 +4,7 @@
 描述: 这个脚本实现了实时风格迁移，支持训练模型、处理一批图像以及处理视频文件。它基于PyTorch实现，并使用VGG网络提取风格特征。
 
 使用方法:
-    - 训练模式: python fast_style_transfer.py --mode train --style_image ./data/udnie.jpg --content_dataset data/train2017 --model_save_path ./models/model.pth
+    - 训练模式: python fast_style_transfer.py --mode train --style_image ./data/udnie.jpg --content_dataset data/train2017 --model_save_path ./models/model.pth --epochs 10
     - 图像处理模式: python fast_style_transfer.py --mode image --input_images_dir ./data/city.jpg --output_images_dir ./output/images_generated --model_path ./models/model.pth
     - 视频处理模式: python fast_style_transfer.py --mode video --video_input data/video.mp4 --video_output output/video_styled.mp4 --model_path ./models/model.pth
 """
@@ -37,6 +37,7 @@ def train(model,
           image_style,
           content_dataset_root,
           save_path, output_dir,
+          log_dir='./runs/fast_style_transfer',
           save_interval=timedelta(seconds=120)):
     """
 
@@ -55,10 +56,11 @@ def train(model,
     :param content_dataset_root: 内容图片文件夹路径
     :param save_path: 模型保存路径
     :param output_dir: 中间结果输出路径
+    :param log_dir: tensorboard日志的保存路径
     :param save_interval: 保存时间间隔
     :return:
     """
-    writer = SummaryWriter(f'/root/tf-logs/realtime_style_transfer')  # autodl平台tensorboard默认日志路径
+    writer = SummaryWriter(log_dir)  # autodl平台tensorboard默认日志路径
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)  # 对目标网络进行优化
     dataset = COCODataset(content_dataset_root, transform=transform)
     dataloader = DataLoader(dataset, batch_size, shuffle=True)
@@ -120,6 +122,10 @@ def process_images(images: Iterable[Image.Image], transform, model, device) -> L
 def process_video(video_path, output_path, transform, model, device, batch_size=4):
     # 打开视频文件
     cap = cv2.VideoCapture(video_path)
+    output_dir, filename = os.path.split(output_path)
+
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     # 获取视频属性
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -159,7 +165,7 @@ def process_video(video_path, output_path, transform, model, device, batch_size=
         for gen_frame in batch_generated:
             out.write(cv2.cvtColor(np.array(gen_frame), cv2.COLOR_RGB2BGR))
         pbar.update(len(frames))
-    print(f'generated video successfully saved to: {output_path}')
+    print(f'video successfully saved to: {output_path}')
     pbar.close()
     cap.release()
     out.release()
@@ -169,26 +175,32 @@ def parse_args():
     parser = argparse.ArgumentParser(description='实时风格迁移算法 - Fast Style Transfer')
     parser.add_argument('--mode', type=str, choices=['train', 'image', 'video'], default='video',
                         help='运行模式: train, image, video')
-    parser.add_argument('--image_size', type=int, nargs=2, default=[300, 450], help='图像尺寸 (高度, 宽度)')
+
     parser.add_argument('--style_image', type=str, default='./data/udnie.jpg', help='风格图像路径 (仅训练模式)')
     # data/train2017/default_class下包含了若干个图片，由于ImageFolder的格式需要，我们需要用类别文件夹包含图片，尽管类别标签没有使用到
-    parser.add_argument('--content_dataset', type=str, default='data/train2017', help='内容图像数据集路径 (仅训练模式)')
+    parser.add_argument('--content_dataset', type=str, default='data/train2014', help='内容图像数据集路径 (仅训练模式)')
+    parser.add_argument('--content_weight', type=float, default=1., help='内容权重(仅训练模式)')
+    parser.add_argument('--style_weight', type=float, default=15., help='风格权重(仅训练模式)')
+    parser.add_argument('--model_save_path', type=str, default=f'./models/{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}.pth', help='模型保存路径 (训练模式)')
 
-    parser.add_argument('--content_weight', type=float, default=1., help='内容权重')
-    parser.add_argument('--style_weight', type=float, default=15., help='风格权重')
-    parser.add_argument('--model_save_path', type=str, help='模型保存路径 (训练模式)')
-    parser.add_argument('--model_path', type=str, default='./models/starry_night.pth', help='模型加载路径')
-    parser.add_argument('--input_images_dir', type=str, help='输入图像根目录')
+    parser.add_argument('--pretrained_model_path', type=str, help='预训练模型加载路径(仅训练模式)')
+    parser.add_argument('--epochs', type=int, default=20, help='训练周期数(训练模式)')
+    parser.add_argument('--save_interval', type=int, default=120, help='保存时间间隔(秒)(训练模式)')
+    parser.add_argument('--learning_rate', type=float, default=0.001, help='学习率(训练模式)')
+    parser.add_argument('--output_dir', type=str, default='./output/realtime_transfer', help='输出目录 (训练模式)')
+    parser.add_argument('--log_dir', type=str, default='./runs/fast_style_transfer', help='tensorboard日志路径 (训练模式)')
+
+    parser.add_argument('--model_path', type=str, default='./models/udnie.pth', help='模型加载路径(图像和视频模式)')
+    parser.add_argument('--input_images_dir', type=str, help='输入图像根目录(仅图像模式)')
     parser.add_argument('--output_images_dir', type=str, default='./output/fast_style_transfer/image_generated.jpg',
                         help='输出图像根目录 (仅图像模式)')
+
     parser.add_argument('--video_input', type=str, default='data/maigua.mp4', help='输入视频路径 (仅视频模式)')
-    parser.add_argument('--video_output', type=str, default='output/videos/maigua_starry_night.mp4',
+    parser.add_argument('--video_output', type=str, default='output/videos/maigua.mp4',
                         help='输出视频路径 (仅视频模式)')
-    parser.add_argument('--output_dir', type=str, default='./output/realtime_transfer', help='输出目录 (图像模式)')
-    parser.add_argument('--epochs', type=int, default=20, help='训练周期数')
-    parser.add_argument('--save_interval', type=int, default=120, help='保存时间间隔(秒)')
+
     parser.add_argument('--batch_size', type=int, default=4, help='批次大小')
-    parser.add_argument('--learning_rate', type=float, default=0.001, help='学习率')
+
     return parser.parse_args()
 
 
@@ -208,8 +220,14 @@ if __name__ == '__main__':
     vgg = VGG(content_layers, style_layers).to(device)  # 特征提取网络，只用来提取特征，不进行训练
     model = TransNet(input_size=args.image_size).to(device)  # 内容生成网络，用于生成风格图片，进行训练
 
-    if getattr(args, 'model_path') and os.path.exists(args.model_path):
+    if args.mode != 'train' and getattr(args, 'model_path'):
+        if not os.path.exists(args.model_path):
+            raise FileNotFoundError(f'{args.model_path}不存在！')
         model.load_state_dict(torch.load(args.model_path))
+    elif args.mode == 'train' and getattr(args, 'pretrained_model_path') and os.path.exists(args.pretrained_model_path):
+        if not os.path.exists(args.pretrained_model_path):
+            raise FileNotFoundError(f'{args.pretrained_model_path}不存在！')
+        model.load_state_dict(torch.load(args.pretrained_model_path))
 
     if args.mode == 'train':
         # 训练模式
@@ -218,6 +236,7 @@ if __name__ == '__main__':
               style_layers,
               content_layers, device, transform, image_style, args.content_dataset, args.model_save_path,
               args.output_dir,
+              log_dir=args.log_dir,
               save_interval=timedelta(seconds=args.save_interval))
 
     elif args.mode == 'image':
@@ -235,3 +254,4 @@ if __name__ == '__main__':
 
     else:
         raise ValueError("未知的运行模式")
+

@@ -6,7 +6,7 @@
 
 使用方法:
     运行该脚本时，可以通过命令行参数指定内容图像路径、风格图像路径、输出目录等。
-    示例: python stylefusion.py --content_image ./data/city.jpg --style_image ./data/udnie.jpg --output_dir ./output
+    示例: python stylefusion.py --content_image ./data/city.jpg --style_image ./data/udnie.jpg --output_dir ./output/iterative_style_transfer
 """
 
 import argparse
@@ -74,3 +74,4 @@ if __name__ == "__main__":
 
         # 保存生成图像
         save_image(generated_img, args.output_dir, f'generated_{epoch + 1}.jpg')
+
