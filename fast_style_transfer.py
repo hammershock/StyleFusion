@@ -4,9 +4,9 @@
 描述: 这个脚本实现了实时风格迁移，支持训练模型、处理一批图像以及处理视频文件。它基于PyTorch实现，并使用VGG网络提取风格特征。
 
 使用方法:
-    - 训练模式: python fast_style_transfer.py --mode train --style_image ./data/udnie.jpg --content_dataset data/train2017 --model_save_path ./models/model.pth --epochs 10
-    - 图像处理模式: python fast_style_transfer.py --mode image --input_images_dir ./data/city.jpg --output_images_dir ./output/images_generated --model_path ./models/model.pth
-    - 视频处理模式: python fast_style_transfer.py --mode video --video_input data/video.mp4 --video_output output/video_styled.mp4 --model_path ./models/model.pth
+    - 训练模式: python fast_style_transfer.py --mode train --style_image ./data/udnie.jpg --content_dataset data/train2017 --model_save_path ./models/new_model.pth --epochs 10
+    - 图像处理模式: python fast_style_transfer.py --mode image --input_images_dir ./data/train2014/default_class --output_images_dir ./output/images_generated --model_path ./models/udnie.pth
+    - 视频处理模式: python fast_style_transfer.py --mode video --video_input data/maigua.mp4 --video_output output/videos/maigua_udnie.mp4 --model_path ./models/udnie.pth
 """
 
 import argparse
@@ -175,7 +175,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='实时风格迁移算法 - Fast Style Transfer')
     parser.add_argument('--mode', type=str, choices=['train', 'image', 'video'], default='video',
                         help='运行模式: train, image, video')
-
+    parser.add_argument('--image_size', type=int, nargs=2, default=[300, 450], help='图像尺寸 (高度, 宽度)')
     parser.add_argument('--style_image', type=str, default='./data/udnie.jpg', help='风格图像路径 (仅训练模式)')
     # data/train2017/default_class下包含了若干个图片，由于ImageFolder的格式需要，我们需要用类别文件夹包含图片，尽管类别标签没有使用到
     parser.add_argument('--content_dataset', type=str, default='data/train2014', help='内容图像数据集路径 (仅训练模式)')
@@ -206,7 +206,7 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    print(args)
+    # print(args)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # ----------------路径参数----------------
 
@@ -241,11 +241,16 @@ if __name__ == '__main__':
 
     elif args.mode == 'image':
         # 使用训练好的风格迁移模型演示批量处理图片
+        if not os.path.exists(args.output_images_dir):
+            os.makedirs(args.output_images_dir)
         for filename in tqdm(os.listdir(args.input_images_dir), desc='Processing Images'):
-            filepath = os.path.join(args.input_images_dir, filename)
+            try:
+                filepath = os.path.join(args.input_images_dir, filename)
 
-            images_generated = process_images([Image.open(filepath)], transform, model, device)
-            images_generated[0].save(os.path.join(args.output_images_dir, filename))
+                images_generated = process_images([Image.open(filepath)], transform, model, device)
+                images_generated[0].save(os.path.join(args.output_images_dir, filename))
+            except Exception as e:
+                pass
 
     elif args.mode == 'video':
         # 视频处理模式
