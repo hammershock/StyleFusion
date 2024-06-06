@@ -1,5 +1,7 @@
 # StyleFusion神经风格迁移
 
+![maigua2](https://github.com/hammershock/StyleFusion/assets/109429530/db54cde7-bb48-45ea-928b-c9ef94af912c)
+
 使用 PyTorch 实现的神经风格迁移, 包括以下版本：
 1. **非实时图像风格迁移**
 2. **实时图像风格迁移**
