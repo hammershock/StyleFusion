@@ -70,7 +70,7 @@
 ---------
 - 复现了以下论文的成果：Gatys, L. A., Ecker, A. S., & Bethge, M. (2016). Image Style Transfer Using Convolutional Neural Networks. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR).
 该论文首次提出了使用卷积神经网络实现图像风格迁移的方法，并为后续的研究奠定了基础。
-- 非实时风格迁移部分参考了AaronJny使用tensorflow的实现(https://github.com/AaronJny/DeepLearningExamples/tree/master/tf2-neural-style-transfer)
+- 非实时风格迁移部分参考了AaronJny[使用tensorflow的实现](https://github.com/AaronJny/DeepLearningExamples/tree/master/tf2-neural-style-transfer)
 
 ## 使用方法
 
